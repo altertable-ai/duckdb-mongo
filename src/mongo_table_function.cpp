@@ -73,7 +73,7 @@ InsertionOrderPreservingMap<string> MongoScanToString(TableFunctionToStringInput
 }
 
 unique_ptr<FunctionData> MongoScanBind(ClientContext &context, TableFunctionBindInput &input,
-                                       vector<LogicalType> &return_types, vector<string> &names) {
+                                       vector<LogicalType> &return_types, MongoColumnNameVector &names) {
 	auto result = make_uniq<MongoScanData>();
 
 	// Parse function arguments
@@ -166,7 +166,7 @@ unique_ptr<FunctionData> MongoScanBind(ClientContext &context, TableFunctionBind
 
 	// Set return types and names
 	return_types = result->column_types;
-	names = result->column_names;
+	names = MongoMakeColumnNames(result->column_names);
 
 	return std::move(result);
 }

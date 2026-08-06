@@ -255,9 +255,8 @@ static bool GetOrderColumnName(const Expression &expr, string &name) {
 		name = MongoExprName(expr);
 		return true;
 	}
-	if (expr.GetExpressionClass() == ExpressionClass::BOUND_CAST) {
-		auto &cast = expr.Cast<BoundCastExpression>();
-		auto *cast_child = MongoCastChild(cast);
+	if (MongoIsCastExpr(expr)) {
+		auto *cast_child = MongoCastChild(expr);
 		if (cast_child) {
 			return GetOrderColumnName(*cast_child, name);
 		}

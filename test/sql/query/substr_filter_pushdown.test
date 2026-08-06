@@ -1,5 +1,5 @@
 # name: test/sql/query/substr_filter_pushdown.test
-# description: Verify substring filter is pushed down into Mongo $expr
+# description: Verify substring prefix filter is pushed into Mongo (via $substrCP $expr or range rewrite)
 # group: [query]
 
 require mongo
@@ -9,10 +9,12 @@ require-env MONGODB_TEST_DATABASE_AVAILABLE
 statement ok
 ATTACH 'host=localhost port=27017 dbname=duckdb_mongo_test' AS mongo_test (TYPE MONGO);
 
+# DuckDB v1.5.x pushes substring(...) = const as Mongo $expr/$substrCP.
+# DuckDB main rewrites prefix-equality into a range filter that is also pushed down.
 query II
 EXPLAIN SELECT name FROM mongo_test.users WHERE substring(name, 1, 1) = 'A';
 ----
-physical_plan	<REGEX>:[\s\S]*(MONGO_SCAN|Mongo Scan)[\s\S]*expr[\s\S]*\$substrCP[\s\S]*
+physical_plan	<REGEX>:[\s\S]*(MONGO_SCAN|Mongo Scan)[\s\S]*(expr[\s\S]*\$substrCP|Filters:[\s\S]*name[\s\S]*)[\s\S]*
 
 query I
 SELECT name FROM mongo_test.users WHERE substring(name, 1, 1) = 'A' ORDER BY name;
