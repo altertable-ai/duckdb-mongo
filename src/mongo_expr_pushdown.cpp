@@ -24,9 +24,8 @@ namespace {
 // Helper function to unwrap CAST expressions and get the underlying column reference
 static const BoundColumnRefExpression *UnwrapCastToColumnRef(const Expression &expr) {
 	const Expression *current = &expr;
-	while (current->GetExpressionClass() == ExpressionClass::BOUND_CAST) {
-		auto &cast_expr = current->Cast<BoundCastExpression>();
-		current = MongoCastChild(cast_expr);
+	while (MongoIsCastExpr(*current)) {
+		current = MongoCastChild(*current);
 	}
 	if (current->GetExpressionClass() == ExpressionClass::BOUND_COLUMN_REF) {
 		return &current->Cast<BoundColumnRefExpression>();
@@ -266,15 +265,13 @@ static bool IsSimpleColumnToConstantComparison(const Expression &expr) {
 	const Expression *right_expr = &MongoComparisonRight(expr);
 
 	// Unwrap CAST on left side
-	while (left_expr->GetExpressionClass() == ExpressionClass::BOUND_CAST) {
-		auto &cast_expr = left_expr->Cast<BoundCastExpression>();
-		left_expr = MongoCastChild(cast_expr);
+	while (MongoIsCastExpr(*left_expr)) {
+		left_expr = MongoCastChild(*left_expr);
 	}
 
 	// Unwrap CAST on right side
-	while (right_expr->GetExpressionClass() == ExpressionClass::BOUND_CAST) {
-		auto &cast_expr = right_expr->Cast<BoundCastExpression>();
-		right_expr = MongoCastChild(cast_expr);
+	while (MongoIsCastExpr(*right_expr)) {
+		right_expr = MongoCastChild(*right_expr);
 	}
 
 	bool left_is_column = left_expr->GetExpressionClass() == ExpressionClass::BOUND_COLUMN_REF;
@@ -318,15 +315,13 @@ static bool ConvertExpressionToMongoExpr(const Expression &expr, const vector<st
 		const Expression *right_expr = &MongoComparisonRight(expr);
 
 		// Unwrap CAST on left side
-		while (left_expr->GetExpressionClass() == ExpressionClass::BOUND_CAST) {
-			auto &cast_expr = left_expr->Cast<BoundCastExpression>();
-			left_expr = MongoCastChild(cast_expr);
+		while (MongoIsCastExpr(*left_expr)) {
+			left_expr = MongoCastChild(*left_expr);
 		}
 
 		// Unwrap CAST on right side
-		while (right_expr->GetExpressionClass() == ExpressionClass::BOUND_CAST) {
-			auto &cast_expr = right_expr->Cast<BoundCastExpression>();
-			right_expr = MongoCastChild(cast_expr);
+		while (MongoIsCastExpr(*right_expr)) {
+			right_expr = MongoCastChild(*right_expr);
 		}
 
 		bool left_is_column = left_expr->GetExpressionClass() == ExpressionClass::BOUND_COLUMN_REF;

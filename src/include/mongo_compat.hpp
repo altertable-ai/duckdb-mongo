@@ -194,12 +194,22 @@ inline ColumnBinding &MongoColumnBindingMutable(BoundColumnRefExpression &expr) 
 #endif
 }
 
-// Cast always has a non-null child; return a pointer for uniform call sites.
-inline const Expression *MongoCastChild(const BoundCastExpression &expr) {
+// DuckDB main: casts are BoundFunctionExpression; BoundCastExpression is helper-only.
+// v1.5.x: ExpressionClass::BOUND_CAST + BoundCastExpression with .child.
+inline bool MongoIsCastExpr(const Expression &expr) {
 #ifdef DUCKDB_MAIN_VECTOR_API
-	return &expr.Child();
+	return BoundCastExpression::IsCast(expr);
 #else
-	return expr.child.get();
+	return expr.GetExpressionClass() == ExpressionClass::BOUND_CAST;
+#endif
+}
+
+// Cast always has a non-null child; return a pointer for uniform call sites.
+inline const Expression *MongoCastChild(const Expression &expr) {
+#ifdef DUCKDB_MAIN_VECTOR_API
+	return &BoundCastExpression::Child(expr.Cast<BoundFunctionExpression>());
+#else
+	return expr.Cast<BoundCastExpression>().child.get();
 #endif
 }
 

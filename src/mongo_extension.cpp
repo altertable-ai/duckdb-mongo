@@ -7,6 +7,7 @@
 #include "mongo_expr_pushdown.hpp"
 #include "mongo_optimizer.hpp"
 #include "mongo_secrets.hpp"
+#include "mongo_compat.hpp"
 #include "duckdb/function/table_function.hpp"
 #include "duckdb/main/config.hpp"
 #if __has_include("duckdb/main/extension_callback_manager.hpp")
@@ -25,7 +26,7 @@ namespace duckdb {
 
 // Forward declarations (functions are defined in mongo_table_function.cpp)
 unique_ptr<FunctionData> MongoScanBind(ClientContext &context, TableFunctionBindInput &input,
-                                       vector<LogicalType> &return_types, vector<string> &names);
+                                       vector<LogicalType> &return_types, MongoColumnNameVector &names);
 unique_ptr<LocalTableFunctionState> MongoScanInitLocal(ExecutionContext &context, TableFunctionInitInput &input,
                                                        GlobalTableFunctionState *global_state);
 void MongoScanFunction(ClientContext &context, TableFunctionInput &data_p, DataChunk &output);
