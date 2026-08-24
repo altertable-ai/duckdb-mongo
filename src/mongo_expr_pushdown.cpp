@@ -381,7 +381,7 @@ static bool ConvertExpressionToMongoExpr(const Expression &expr, const vector<st
 			if (MONGO_EXPR_RETURN_TYPE(*left_expr) != const_val.type()) {
 				Value casted_val;
 				string error_message;
-				if (const_val.DefaultTryCastAs(MONGO_EXPR_RETURN_TYPE(*left_expr), casted_val, &error_message, true)) {
+				if (MongoDefaultTryCastAs(const_val, MONGO_EXPR_RETURN_TYPE(*left_expr), casted_val, &error_message, true)) {
 					BoundConstantExpression casted_const(casted_val);
 					AppendConstantToBSONArray(casted_const, args_array);
 				} else {

@@ -364,4 +364,23 @@ inline MongoDefaultEntryList MongoMakeDefaultEntries(const vector<string> &names
 }
 #endif
 
+#ifdef DUCKDB_MAIN_VECTOR_API
+#include "duckdb/common/optional.hpp"
+#endif
+
+// DuckDB main changed DefaultTryCastAs to return optional<Value> instead of bool + out-param.
+inline bool MongoDefaultTryCastAs(const Value &value, const LogicalType &target_type, Value &result,
+                                  string *error_message = nullptr, bool strict = false) {
+#ifdef DUCKDB_MAIN_VECTOR_API
+	auto casted = value.DefaultTryCastAs(target_type, error_message, strict);
+	if (casted) {
+		result = std::move(*casted);
+		return true;
+	}
+	return false;
+#else
+	return value.DefaultTryCastAs(target_type, result, error_message, strict);
+#endif
+}
+
 } // namespace duckdb
