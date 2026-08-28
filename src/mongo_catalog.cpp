@@ -336,7 +336,8 @@ optional_ptr<SchemaCatalogEntry> MongoCatalog::LookupSchema(CatalogTransaction t
 
 	if (schema_name.empty()) {
 #ifdef DUCKDB_MAIN_VECTOR_API
-		schema_name = GetDefaultSchema().GetIdentifierName();
+		auto default_ident = GetDefaultSchema();
+		schema_name = default_ident ? default_ident->GetIdentifierName() : string();
 #else
 		schema_name = GetDefaultSchema();
 #endif
