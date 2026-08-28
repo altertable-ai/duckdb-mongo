@@ -82,7 +82,7 @@ public:
 	}
 
 #ifdef DUCKDB_MAIN_VECTOR_API
-	Identifier GetDefaultSchema() const override {
+	optional<Identifier> GetDefaultSchema() const override {
 		if (!default_schema.empty()) {
 			return Identifier(default_schema);
 		}

@@ -430,7 +430,7 @@ Value BSONArrayToList(const bsoncxx::array::view &array, const LogicalType &list
 						}
 						Value casted_val;
 						string error_msg;
-						if (elem_val.DefaultTryCastAs(base_type, casted_val, &error_msg)) {
+						if (MongoDefaultTryCastAs(elem_val, base_type, casted_val, &error_msg)) {
 							nested_list_values.push_back(casted_val);
 						} else {
 							nested_list_values.push_back(Value(base_type));
@@ -486,7 +486,7 @@ Value BSONArrayToList(const bsoncxx::array::view &array, const LogicalType &list
 				}
 				Value casted_val;
 				string error_msg;
-				if (elem_val.DefaultTryCastAs(base_type, casted_val, &error_msg)) {
+				if (MongoDefaultTryCastAs(elem_val, base_type, casted_val, &error_msg)) {
 					// Wrap the casted value to match expected depth
 					Value wrapped = casted_val;
 					for (int i = 0; i < depth_diff; i++) {
@@ -549,7 +549,7 @@ Value BSONArrayToList(const bsoncxx::array::view &array, const LogicalType &list
 
 			Value casted_val;
 			string error_msg;
-			if (elem_val.DefaultTryCastAs(child_type, casted_val, &error_msg)) {
+			if (MongoDefaultTryCastAs(elem_val, child_type, casted_val, &error_msg)) {
 				list_values.push_back(casted_val);
 			} else {
 				list_values.push_back(Value(child_type));

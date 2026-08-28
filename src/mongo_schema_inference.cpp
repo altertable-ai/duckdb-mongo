@@ -914,7 +914,7 @@ bool FlattenDocument(const bsoncxx::document::view &doc, const std::vector<strin
 				if (empty_list.type() != column_type) {
 					Value casted_list;
 					string error_msg;
-					if (!empty_list.DefaultTryCastAs(column_type, casted_list, &error_msg)) {
+					if (!MongoDefaultTryCastAs(empty_list, column_type, casted_list, &error_msg)) {
 						FlatVector::SetNull(vec, row_idx, true);
 						continue;
 					}
@@ -927,7 +927,7 @@ bool FlattenDocument(const bsoncxx::document::view &doc, const std::vector<strin
 				if (list_value.type() != column_type) {
 					Value casted_list;
 					string error_msg;
-					if (!list_value.DefaultTryCastAs(column_type, casted_list, &error_msg)) {
+					if (!MongoDefaultTryCastAs(list_value, column_type, casted_list, &error_msg)) {
 						FlatVector::SetNull(vec, row_idx, true);
 					} else {
 						vec.SetValue(row_idx, casted_list);
@@ -970,7 +970,7 @@ bool FlattenDocument(const bsoncxx::document::view &doc, const std::vector<strin
 			if (struct_value.type() != column_type) {
 				Value casted_struct;
 				string error_msg;
-				if (!struct_value.DefaultTryCastAs(column_type, casted_struct, &error_msg)) {
+				if (!MongoDefaultTryCastAs(struct_value, column_type, casted_struct, &error_msg)) {
 					FlatVector::SetNull(vec, row_idx, true);
 					continue;
 				}
