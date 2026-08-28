@@ -20,11 +20,10 @@ jobs:
       ci_tools_version: v1.5.5
       extension_name: mongo
       exclude_archs: "wasm_mvp;wasm_eh;wasm_threads;windows_amd64_mingw;"
-      # Use vcpkg commit with mongo-c-driver 1.30.3 which includes the CMP0042 fix.
-      # The default commit (ce613c41372b23b1f51333815feb3edd87ef8a8b) has mongo-c-driver 1.30.2
-      # which fails on macOS with CMake 4.0+ due to deprecated cmake_policy(SET CMP0042 OLD).
-      # This is the immediate next commit after the default, minimizing risk of other breakage.
-      vcpkg_commit: '9aa0650e5c8d23fe66701bafb3ec03ac732a3ff1'
+      # Pin a current vcpkg baseline so Windows msys2 package URLs still resolve.
+      # mongo-c-driver 1.30.3 / mongo-cxx-driver 4.0.0 are kept via vcpkg_ports overlays,
+      # with cmake-4.4.patch so CMake 4.4 on macOS-15 can configure the C driver.
+      vcpkg_commit: 'f74a2eade17a628413746557d04db25ccf6e76f9'
 
   duckdb-next-build:
     name: Build extension binaries (DuckDB main)
@@ -34,11 +33,10 @@ jobs:
       ci_tools_version: main
       extension_name: mongo
       exclude_archs: "wasm_mvp;wasm_eh;wasm_threads;windows_amd64_mingw;"
-      # Use vcpkg commit with mongo-c-driver 1.30.3 which includes the CMP0042 fix.
-      # The default commit (ce613c41372b23b1f51333815feb3edd87ef8a8b) has mongo-c-driver 1.30.2
-      # which fails on macOS with CMake 4.0+ due to deprecated cmake_policy(SET CMP0042 OLD).
-      # This is the immediate next commit after the default, minimizing risk of other breakage.
-      vcpkg_commit: '9aa0650e5c8d23fe66701bafb3ec03ac732a3ff1'
+      # Pin a current vcpkg baseline so Windows msys2 package URLs still resolve.
+      # mongo-c-driver 1.30.3 / mongo-cxx-driver 4.0.0 are kept via vcpkg_ports overlays,
+      # with cmake-4.4.patch so CMake 4.4 on macOS-15 can configure the C driver.
+      vcpkg_commit: 'f74a2eade17a628413746557d04db25ccf6e76f9'
 
   code-quality-check:
     name: Code Quality Check

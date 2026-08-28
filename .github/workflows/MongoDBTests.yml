@@ -90,11 +90,8 @@ jobs:
     - name: Setup vcpkg
       uses: lukka/run-vcpkg@v11.1
       with:
-        # Use vcpkg commit with mongo-c-driver 1.30.3 which includes the CMP0042 fix.
-        # The default commit (ce613c41372b23b1f51333815feb3edd87ef8a8b) has mongo-c-driver 1.30.2
-        # which fails on macOS with CMake 4.0+ due to deprecated cmake_policy(SET CMP0042 OLD).
-        # This is the immediate next commit after the default, minimizing risk of other breakage.
-        vcpkgGitCommitId: 9aa0650e5c8d23fe66701bafb3ec03ac732a3ff1
+        # Current vcpkg baseline (msys2 URLs). Driver versions are pinned via vcpkg_ports.
+        vcpkgGitCommitId: f74a2eade17a628413746557d04db25ccf6e76f9
       env:
         # Ensure ninja is available to vcpkg during setup
         PATH: /usr/bin:/usr/local/bin:$PATH
