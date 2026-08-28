@@ -90,7 +90,7 @@ jobs:
     - name: Setup vcpkg
       uses: lukka/run-vcpkg@v11.1
       with:
-        # Current vcpkg baseline (msys2 URLs). Driver versions are pinned via vcpkg_ports.
+        # Same pin as MainDistributionPipeline (mongo-c-driver 2.3.1#2 + cmake-4.4.patch).
         vcpkgGitCommitId: f74a2eade17a628413746557d04db25ccf6e76f9
       env:
         # Ensure ninja is available to vcpkg during setup

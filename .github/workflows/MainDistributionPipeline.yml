@@ -20,9 +20,10 @@ jobs:
       ci_tools_version: v1.5.5
       extension_name: mongo
       exclude_archs: "wasm_mvp;wasm_eh;wasm_threads;windows_amd64_mingw;"
-      # Pin a current vcpkg baseline so Windows msys2 package URLs still resolve.
-      # mongo-c-driver 1.30.3 / mongo-cxx-driver 4.0.0 are kept via vcpkg_ports overlays,
-      # with cmake-4.4.patch so CMake 4.4 on macOS-15 can configure the C driver.
+      # Newer than extension-ci-tools default (84bab45): that baseline still has
+      # mongo-c-driver 1.30.6, which fails to configure on CMake 4.4 (macos-15),
+      # and its msys2 package URLs 404. This commit ships mongo-c-driver 2.3.1#2
+      # with upstream cmake-4.4.patch (CDRIVER-6367).
       vcpkg_commit: 'f74a2eade17a628413746557d04db25ccf6e76f9'
 
   duckdb-next-build:
@@ -33,9 +34,7 @@ jobs:
       ci_tools_version: main
       extension_name: mongo
       exclude_archs: "wasm_mvp;wasm_eh;wasm_threads;windows_amd64_mingw;"
-      # Pin a current vcpkg baseline so Windows msys2 package URLs still resolve.
-      # mongo-c-driver 1.30.3 / mongo-cxx-driver 4.0.0 are kept via vcpkg_ports overlays,
-      # with cmake-4.4.patch so CMake 4.4 on macOS-15 can configure the C driver.
+      # Same pin as duckdb-stable-build (CMake 4.4 + current msys2 URLs).
       vcpkg_commit: 'f74a2eade17a628413746557d04db25ccf6e76f9'
 
   code-quality-check:
