@@ -81,8 +81,8 @@ static bsoncxx::types::bson_value::value CellToBson(const Value &value, const Lo
 		return types::bson_value::value(value.GetValue<bool>());
 	case LogicalTypeId::DATE: {
 		auto date_val = value.GetValue<date_t>();
-		auto date_obj = Date::FromDate(Date::ExtractYear(date_val), Date::ExtractMonth(date_val),
-		                               Date::ExtractDay(date_val));
+		auto date_obj =
+		    Date::FromDate(Date::ExtractYear(date_val), Date::ExtractMonth(date_val), Date::ExtractDay(date_val));
 		auto ts = Timestamp::FromDatetime(date_obj, Time::FromTime(0, 0, 0));
 		return types::bson_value::value(types::b_date {std::chrono::milliseconds(Timestamp::GetEpochMs(ts))});
 	}
@@ -108,8 +108,8 @@ static bsoncxx::types::bson_value::value CellToBson(const Value &value, const Lo
 		auto &child_types = StructType::GetChildTypes(type);
 		auto &children = StructValue::GetChildren(value);
 		for (idx_t i = 0; i < children.size(); i++) {
-			sub.append(bsoncxx::builder::basic::kvp(child_types[i].first,
-			                                        CellToBson(children[i], child_types[i].second, "", objectid_columns)));
+			sub.append(bsoncxx::builder::basic::kvp(
+			    child_types[i].first, CellToBson(children[i], child_types[i].second, "", objectid_columns)));
 		}
 		return types::bson_value::value(sub.view());
 	}

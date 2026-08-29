@@ -11,9 +11,9 @@ namespace duckdb {
 
 class MongoInsertLocalState;
 
-// Serialize one row of a DataChunk to a BSON document, re-nesting dotted MongoDB paths into subdocuments (the inverse of
-// the read path's flattening). NULL cells are omitted rather than written as BSON null, so a row that supplies no _id
-// lets MongoDB generate one. Shared by the INSERT sink and the COPY ... TO writer.
+// Serialize one row of a DataChunk to a BSON document, re-nesting dotted MongoDB paths into subdocuments (the inverse
+// of the read path's flattening). NULL cells are omitted rather than written as BSON null, so a row that supplies no
+// _id lets MongoDB generate one. Shared by the INSERT sink and the COPY ... TO writer.
 bsoncxx::document::value MongoSerializeRow(DataChunk &chunk, idx_t row_idx, idx_t col_count,
                                            const vector<string> &column_names,
                                            const unordered_map<string, string> &column_name_to_mongo_path,
@@ -88,7 +88,7 @@ public:
 	// Source interface (reports the insert count)
 	unique_ptr<GlobalSourceState> GetGlobalSourceState(ClientContext &context) const override;
 	SourceResultType GetDataInternal(ExecutionContext &context, DataChunk &chunk,
-	                                  OperatorSourceInput &input) const override;
+	                                 OperatorSourceInput &input) const override;
 	bool IsSource() const override {
 		return true;
 	}

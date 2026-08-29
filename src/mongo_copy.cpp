@@ -148,8 +148,8 @@ void MongoCopySink(ExecutionContext &context, FunctionData &bind_data, GlobalFun
 	const unordered_set<string> no_objectid_columns;
 
 	for (idx_t row = 0; row < input.size(); row++) {
-		if (lstate.batch.Stage(MongoSerializeRow(input, row, col_count, bdata.column_names, no_paths,
-		                                         no_objectid_columns))) {
+		if (lstate.batch.Stage(
+		        MongoSerializeRow(input, row, col_count, bdata.column_names, no_paths, no_objectid_columns))) {
 			lstate.batch.Flush(collection);
 		}
 	}

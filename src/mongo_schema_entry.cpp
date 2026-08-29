@@ -53,8 +53,8 @@ optional_ptr<CatalogEntry> MongoSchemaEntry::LookupEntry(CatalogTransaction tran
 		}
 		// Skip on-demand creation for recently dropped collections.
 		if (!dropped_tables.count(entry_name) && !connection_string.empty() && !database_name.empty()) {
-			auto table_entry =
-			    MongoCreateTableEntry(catalog, *this, *transaction.context, connection_string, database_name, entry_name);
+			auto table_entry = MongoCreateTableEntry(catalog, *this, *transaction.context, connection_string,
+			                                         database_name, entry_name);
 			if (table_entry) {
 				auto shared_entry = shared_ptr<CatalogEntry>(table_entry.release());
 				tables[entry_name] = shared_entry;

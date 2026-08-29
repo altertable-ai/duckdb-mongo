@@ -415,10 +415,9 @@ PhysicalOperator &MongoCatalog::PlanCreateTableAs(ClientContext &context, Physic
 
 	MongoBatchSink::EnsureCollection(connection_string, db_name, collection_name);
 
-	auto &insert = planner.Make<MongoInsertOperator>(op.types, connection_string, db_name, collection_name,
-	                                                 std::move(column_names), std::move(column_types),
-	                                                 unordered_map<string, string> {}, unordered_set<string> {},
-	                                                 op.estimated_cardinality);
+	auto &insert = planner.Make<MongoInsertOperator>(
+	    op.types, connection_string, db_name, collection_name, std::move(column_names), std::move(column_types),
+	    unordered_map<string, string> {}, unordered_set<string> {}, op.estimated_cardinality);
 	insert.children.push_back(plan);
 	return insert;
 }
