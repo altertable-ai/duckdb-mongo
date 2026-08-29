@@ -1,0 +1,77 @@
+# name: test/sql/query/direct_scan_setting.test
+# description: mongo_enable_direct_scan restricts mongo_scan to attached catalogs
+# group: [query]
+
+require mongo
+
+# Setting is registered and defaults to true (current unrestricted behavior)
+query I
+SELECT current_setting('mongo_enable_direct_scan');
+----
+true
+
+statement ok
+SET mongo_enable_direct_scan = false;
+
+query I
+SELECT current_setting('mongo_enable_direct_scan');
+----
+false
+
+# Unattached URI is rejected before connecting (including file-path URI options)
+statement error
+SELECT * FROM mongo_scan('mongodb://localhost:27017/?tlsCAFile=/etc/passwd', 'db', 'col');
+----
+mongo_enable_direct_scan
+
+# Secret-based mongo_scan is also rejected unless that URI is attached
+statement ok
+CREATE SECRET mongo_direct_scan_secret (
+	TYPE mongo,
+	HOST 'localhost',
+	PORT '27017'
+);
+
+statement error
+SELECT * FROM mongo_scan('mongo_direct_scan_secret', 'db', 'col');
+----
+mongo_enable_direct_scan
+
+statement ok
+DROP SECRET mongo_direct_scan_secret;
+
+# Direct scan works again when re-enabled (do not actually connect here)
+statement ok
+SET mongo_enable_direct_scan = true;
+
+require-env MONGODB_TEST_DATABASE_AVAILABLE
+
+statement ok
+SET mongo_enable_direct_scan = false;
+
+statement ok
+ATTACH 'host=localhost port=27017 dbname=duckdb_mongo_test' AS mongo_direct (TYPE MONGO);
+
+# Queries against the attached catalog still work (views call mongo_scan internally)
+query I
+SELECT COUNT(*) FROM mongo_direct.users;
+----
+4
+
+# mongo_scan is allowed when the URI matches the attached catalog
+query I
+SELECT COUNT(*) FROM mongo_scan('mongodb://localhost:27017/duckdb_mongo_test', 'duckdb_mongo_test', 'users');
+----
+4
+
+# Same host with extra URI options (e.g. tlsCAFile) is not treated as attached
+statement error
+SELECT * FROM mongo_scan('mongodb://localhost:27017/duckdb_mongo_test?tlsCAFile=/etc/passwd', 'duckdb_mongo_test', 'users');
+----
+mongo_enable_direct_scan
+
+statement ok
+DETACH mongo_direct;
+
+statement ok
+SET mongo_enable_direct_scan = true;

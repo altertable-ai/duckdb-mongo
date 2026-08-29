@@ -3,6 +3,7 @@
 #include "mongo_filter_pushdown.hpp"
 #include "mongo_compat.hpp"
 #include "mongo_secrets.hpp"
+#include "mongo_catalog.hpp"
 #include "duckdb/common/types/timestamp.hpp"
 #include "duckdb/common/types/date.hpp"
 #include "duckdb/common/types/time.hpp"
@@ -102,6 +103,9 @@ unique_ptr<FunctionData> MongoScanBind(ClientContext &context, TableFunctionBind
 		const auto &kv_secret = dynamic_cast<const KeyValueSecret &>(*secret_entry->secret);
 		result->connection_string = BuildMongoConnectionString(kv_secret, "");
 	}
+
+	// Reject unattached URIs before constructing a client (avoids libmongoc opening local files).
+	MongoCatalog::VerifyScanConnectionAllowed(context, result->connection_string);
 
 	// Parse named parameters
 	if (input.named_parameters.find("filter") != input.named_parameters.end()) {

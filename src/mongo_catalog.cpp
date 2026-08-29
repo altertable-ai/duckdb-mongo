@@ -13,6 +13,8 @@
 #include "duckdb/planner/operator/logical_delete.hpp"
 #include "duckdb/planner/operator/logical_update.hpp"
 #include "duckdb/main/attached_database.hpp"
+#include "duckdb/main/client_context.hpp"
+#include "duckdb/main/database_manager.hpp"
 #include "duckdb/common/mutex.hpp"
 #include "duckdb/common/exception.hpp"
 #include "duckdb/common/unique_ptr.hpp"
@@ -488,6 +490,29 @@ void MongoCatalog::ClearCache() {
 		}
 		schemas_scanned = false;
 	}
+}
+
+void MongoCatalog::VerifyScanConnectionAllowed(ClientContext &context, const string &connection_string) {
+	Value setting_val;
+	auto lookup = context.TryGetCurrentSetting("mongo_enable_direct_scan", setting_val);
+	if (!lookup || setting_val.IsNull() || setting_val.GetValue<bool>()) {
+		return;
+	}
+
+	auto databases = DatabaseManager::Get(context).GetDatabases(context);
+	for (auto &db_ref : databases) {
+		auto &catalog = db_ref->GetCatalog();
+		if (catalog.GetCatalogType() != "mongo") {
+			continue;
+		}
+		if (catalog.Cast<MongoCatalog>().connection_string == connection_string) {
+			return;
+		}
+	}
+
+	throw BinderException(
+	    "Direct mongo_scan is disabled because mongo_enable_direct_scan is false. Query an attached MongoDB "
+	    "database, or pass a connection string that exactly matches an attached catalog.");
 }
 
 string MongoCatalog::GetConnectionString(ClientContext &context, const string &attach_path, string secret_name) {
