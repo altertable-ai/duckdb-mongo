@@ -1,3 +1,6 @@
+# name: test/sql/insert/insert_smoke.test
+# group: [insert]
+
 # INSERT smoke tests for the MongoDB extension.
 
 require mongo

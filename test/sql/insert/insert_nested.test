@@ -1,3 +1,6 @@
+# name: test/sql/insert/insert_nested.test
+# group: [insert]
+
 # Flatten-reversal test: INSERT re-nests flattened columns into subdocuments.
 #
 # insert_nested is seeded with a nested document so schema inference produces

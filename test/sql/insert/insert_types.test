@@ -1,3 +1,6 @@
+# name: test/sql/insert/insert_types.test
+# group: [insert]
+
 # Write-path type coverage: CTAS roundtrip for every supported DuckDB type.
 #
 # Uses CREATE TABLE AS so that column types come from the SELECT (no pre-seeded

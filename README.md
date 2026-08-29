@@ -1,6 +1,6 @@
 # duckdb-mongo
 
-Integrates DuckDB with MongoDB, enabling direct SQL queries over MongoDB collections without exporting data or ETL.
+Integrates DuckDB with MongoDB, enabling direct SQL queries and writes over MongoDB collections without ETL.
 
 ## Announcement
 
@@ -23,9 +23,9 @@ ATTACH 'host=localhost port=27017' AS mongo_db (TYPE MONGO);
 -- Query your collections
 SELECT * FROM mongo_db.mydb.mycollection LIMIT 10;
 
--- Write data back to MongoDB
-CREATE TABLE mongo_db.mydb.new_collection AS
-SELECT * FROM mongo_db.mydb.mycollection WHERE status = 'active';
+-- Load a CSV directly into MongoDB
+INSERT INTO mongo_db.mydb.mycollection
+SELECT * FROM read_csv('data.csv');
 ```
 
 **Using Secrets with MongoDB Atlas (recommended for production):**
@@ -646,7 +646,7 @@ SELECT * FROM mongo_scan(
 
 ### Architecture
 
-The extension enables **in-process analytical SQL queries** over MongoDB data using DuckDB's embedded analytical engine. Queries execute against live MongoDB data in real-time, with analytical operations (joins, aggregations, window functions) performed locally in memory.
+The extension enables **in-process analytical SQL queries and writes** over MongoDB data using DuckDB's embedded analytical engine. Reads execute against live MongoDB data in real-time, with analytical operations (joins, aggregations, window functions) performed locally in memory. Writes serialize DuckDB rows to BSON and batch-insert them via the MongoDB driver.
 
 ```
 ┌─────────────────────────────────────────┐
@@ -673,11 +673,12 @@ The extension enables **in-process analytical SQL queries** over MongoDB data us
 ┌────────┴───────────────────────┴────────┐
 │ duckdb-mongo Extension                  │
 │  • Schema Resolution                    │
-│  • Pushdown Optimization                │
-│  • BSON → Columnar Conversion           │
+│  • Read: Pushdown Optimization          │
+│  • Read: BSON → Columnar Conversion     │
+│  • Write: Columnar → BSON, insert_many  │
 └────────┬───────────────────────┬────────┘
          │                       ▲
-         │ MQL                   │ BSON stream
+         │ MQL / insert_many     │ BSON stream
          ▼                       │
 ┌─────────────────────────────────────────┐
 │         MONGODB DATABASE                │
@@ -685,8 +686,8 @@ The extension enables **in-process analytical SQL queries** over MongoDB data us
 │  │ Document Store Operations         │  │
 │  │ - Query Execution ($match, $group)│  │
 │  │ - Document Streaming (cursor)     │  │
+│  │ - Bulk Writes (insert_many)       │  │
 │  └───────────────────────────────────┘  │
-│  Data stays here (No ETL/Export)        │
 └─────────────────────────────────────────┘
 ```
 

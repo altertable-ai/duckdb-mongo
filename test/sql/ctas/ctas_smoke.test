@@ -1,3 +1,6 @@
+# name: test/sql/ctas/ctas_smoke.test
+# group: [ctas]
+
 # CREATE TABLE AS smoke test for the MongoDB extension.
 #
 # MongoDB auto-creates a collection on first write, so CREATE TABLE AS needs no
