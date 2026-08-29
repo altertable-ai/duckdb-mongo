@@ -1,5 +1,8 @@
 #include "mongo_schema_entry.hpp"
+#include "mongo_catalog.hpp"
 #include "mongo_compat.hpp"
+#include "mongo_insert.hpp"
+#include "mongo_instance.hpp"
 #include "duckdb/catalog/catalog_entry/view_catalog_entry.hpp"
 #include "duckdb/catalog/catalog_entry/table_catalog_entry.hpp"
 #include "duckdb/parser/parsed_data/create_view_info.hpp"
@@ -18,6 +21,9 @@
 #include "duckdb/main/client_context.hpp"
 #include "duckdb/common/mutex.hpp"
 #include "duckdb/common/exception.hpp"
+#include <mongocxx/client.hpp>
+#include <mongocxx/exception/exception.hpp>
+#include <algorithm>
 namespace duckdb {
 
 MongoSchemaEntry::MongoSchemaEntry(Catalog &catalog, CreateSchemaInfo &info) : SchemaCatalogEntry(catalog, info) {
@@ -38,9 +44,33 @@ optional_ptr<CatalogEntry> MongoSchemaEntry::LookupEntry(CatalogTransaction tran
 
 	lock_guard<mutex> lock(entry_lock);
 
+	// A TABLE_ENTRY lookup (both SELECT and INSERT resolve this way) prefers a base table entry, so that INSERT binds.
+	// Fall back to the view path when the collection has no inferable schema (empty / non-existent collection).
+	if (lookup_info.GetCatalogType() == CatalogType::TABLE_ENTRY && transaction.context) {
+		auto table_it = tables.find(entry_name);
+		if (table_it != tables.end()) {
+			return table_it->second.get();
+		}
+		// Skip on-demand creation for recently dropped collections.
+		if (!dropped_tables.count(entry_name) && !connection_string.empty() && !database_name.empty()) {
+			auto table_entry =
+			    MongoCreateTableEntry(catalog, *this, *transaction.context, connection_string, database_name, entry_name);
+			if (table_entry) {
+				auto shared_entry = shared_ptr<CatalogEntry>(table_entry.release());
+				tables[entry_name] = shared_entry;
+				return shared_entry.get();
+			}
+		}
+	}
+
 	auto it = views.find(entry_name);
 	if (it != views.end()) {
 		return it->second.get();
+	}
+
+	// A recently dropped collection should not be re-created by the default generator.
+	if (dropped_tables.count(entry_name)) {
+		return nullptr;
 	}
 
 	if (default_generator && transaction.context) {
@@ -65,6 +95,12 @@ optional_ptr<CatalogEntry> MongoSchemaEntry::LookupEntry(CatalogTransaction tran
 void MongoSchemaEntry::SetDefaultGenerator(unique_ptr<DefaultGenerator> generator) {
 	lock_guard<mutex> lock(entry_lock);
 	default_generator = std::move(generator);
+}
+
+void MongoSchemaEntry::SetConnectionInfo(const string &connection_string_p, const string &database_name_p) {
+	lock_guard<mutex> lock(entry_lock);
+	connection_string = connection_string_p;
+	database_name = database_name_p;
 }
 
 optional_ptr<CatalogEntry> MongoSchemaEntry::CreateView(CatalogTransaction transaction, CreateViewInfo &info) {
@@ -171,12 +207,18 @@ void MongoSchemaEntry::TryLoadEntries(ClientContext &context) {
 	is_loaded = true;
 }
 
+void MongoSchemaEntry::ClearDroppedEntry(const string &name) {
+	lock_guard<mutex> lock(entry_lock);
+	dropped_tables.erase(name);
+}
+
 void MongoSchemaEntry::InvalidateCache() {
 	lock_guard<mutex> lock(entry_lock);
 	lock_guard<mutex> load_guard(load_lock);
 	is_loaded = false;
 	loaded_collection_names.clear();
 	views.clear();
+	tables.clear();
 }
 
 shared_ptr<CatalogEntry> MongoSchemaEntry::GetOrCreateViewEntry(ClientContext &context, const string &collection_name) {
@@ -277,17 +319,35 @@ void MongoSchemaEntry::Scan(CatalogType type, const std::function<void(CatalogEn
 }
 
 void MongoSchemaEntry::DropEntry(ClientContext &context, DropInfo &info) {
+	auto drop_name = MongoGetDropName(info);
 	if (info.type == CatalogType::VIEW_ENTRY) {
 		lock_guard<mutex> lock(entry_lock);
-		auto drop_name = MongoGetDropName(info);
 		auto it = views.find(drop_name);
 		if (it != views.end()) {
 			views.erase(it);
 		} else if (info.if_not_found == OnEntryNotFound::THROW_EXCEPTION) {
 			throw CatalogException("View with name \"%s\" not found", drop_name);
 		}
+	} else if (info.type == CatalogType::TABLE_ENTRY) {
+		// Drop the underlying MongoDB collection and evict from all caches.
+		if (!connection_string.empty() && !database_name.empty()) {
+			GetMongoInstance();
+			auto client = mongocxx::client(mongocxx::uri(connection_string));
+			client[database_name][drop_name].drop();
+
+			auto &mongo_catalog = catalog.Cast<MongoCatalog>();
+			mongo_catalog.InvalidateCollectionNamesCache(database_name);
+			mongo_catalog.InvalidateViewInfoCache(database_name, drop_name);
+		}
+		lock_guard<mutex> lock(entry_lock);
+		tables.erase(drop_name);
+		views.erase(drop_name);
+		dropped_tables.insert(drop_name);
+		loaded_collection_names.erase(
+		    std::remove(loaded_collection_names.begin(), loaded_collection_names.end(), drop_name),
+		    loaded_collection_names.end());
 	} else {
-		throw NotImplementedException("DROP is only supported for views in MongoDB catalogs");
+		throw NotImplementedException("DROP is not supported for this entry type in MongoDB catalogs");
 	}
 }
 
