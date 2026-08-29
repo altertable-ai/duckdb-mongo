@@ -105,6 +105,23 @@ ATTACH 'mongodb://user:pass@localhost:27017/mydb' AS mongo_db (TYPE MONGO);
 | `tls_allow_invalid_certificates` | Allow invalid certificates (for testing only) | `false` | Both 1 and 2 |
 | `options` | Additional MongoDB connection string query parameters | - | Format 1 only |
 
+### Restricting `mongo_scan`
+
+By default, `mongo_scan` accepts any MongoDB URI (or secret name). That URI is passed to the MongoDB C++ driver, which can open local files via TLS options such as `tlsCAFile`.
+
+To allow `mongo_scan` only for catalogs that are already attached:
+
+```sql
+SET mongo_enable_direct_scan = false;
+```
+
+When this setting is `false`:
+- `SELECT * FROM attached_mongo.collection` still works (views call `mongo_scan` with the attached URI)
+- `mongo_scan` with that exact attached connection string still works
+- any other URI or secret is rejected **before** a MongoDB client is created
+
+Set this **before** locking DuckDB configuration (`SET lock_configuration = true`). The default is `true` for backward compatibility.
+
 > **Tip:** For replica sets (including MongoDB Atlas), use `readPreference=secondaryPreferred` to route reads to secondaries.
 
 ### TLS/SSL Connections

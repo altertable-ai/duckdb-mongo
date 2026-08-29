@@ -106,6 +106,10 @@ public:
 	// Get connection string with secret support
 	static string GetConnectionString(ClientContext &context, const string &attach_path, string secret_name);
 
+	// When mongo_enable_direct_scan is false, mongo_scan may only use a connection string
+	// that exactly matches an attached Mongo catalog (checked before opening a client).
+	static void VerifyScanConnectionAllowed(ClientContext &context, const string &connection_string);
+
 	// Get cached collection names for a database (shared across schemas)
 	vector<string> GetCachedCollectionNames(const string &db_name) const;
 	// Cache collection names for a database

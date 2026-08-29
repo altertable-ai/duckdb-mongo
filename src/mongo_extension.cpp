@@ -113,6 +113,11 @@ static void LoadInternal(ExtensionLoader &loader) {
 	// Register MongoDB storage extension for ATTACH support
 	auto &db = loader.GetDatabaseInstance();
 	auto &config = DBConfig::GetConfig(db);
+	config.AddExtensionOption(
+	    "mongo_enable_direct_scan",
+	    "Allow mongo_scan to use a connection string that is not from an attached MongoDB database. When false, "
+	    "mongo_scan is only allowed if the connection string exactly matches an attached Mongo catalog.",
+	    LogicalType::BOOLEAN, Value::BOOLEAN(true));
 #if DUCKDB_HAS_EXTENSION_CALLBACK_MANAGER
 	auto storage_extension = MongoStorageExtension::Create();
 	shared_ptr<StorageExtension> storage_extension_ptr = std::move(storage_extension);
