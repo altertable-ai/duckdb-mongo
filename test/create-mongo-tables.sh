@@ -515,6 +515,15 @@ db.case_variant_fields_test.insertMany([
   }
 ]);
 
+// Write-path targets. Seeded with schema-only rows so INSERT binds against an
+// inferable schema. CTAS tests write brand-new collections, which dropDatabase()
+// above guarantees are absent on a fresh seed.
+db.copy_target.insertOne({ _id: 0, name: 'schema' });
+db.insert_target.insertOne({ _id: 0, name: 'schema' });
+db.insert_nested.insertOne({ _id: ObjectId('000000000000000000000000'), address: { city: 'seed', zip: NumberInt(0) }, tag: 'seed' });
+db.insert_typed.insertOne({ _id: ObjectId('aaaaaaaaaaaaaaaaaaaaaaaa'), n: NumberInt(1), label: 'seed' });
+db.insert_dup.insertOne({ _id: NumberLong(999), name: 'seed' });
+
 print('Test database created successfully!');
 print('Database: ' + db.getName());
 print('Collections: ' + db.getCollectionNames().join(', '));

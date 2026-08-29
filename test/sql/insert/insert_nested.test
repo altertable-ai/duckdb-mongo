@@ -1,0 +1,41 @@
+# Flatten-reversal test: INSERT re-nests flattened columns into subdocuments.
+#
+# insert_nested is seeded with a nested document so schema inference produces
+# flattened columns address_city and address_zip, mapped back to address.city
+# and address.zip.
+
+require mongo
+
+require-env MONGODB_TEST_DATABASE_AVAILABLE
+
+statement ok
+ATTACH 'host=localhost port=27017 dbname=duckdb_mongo_test' AS m (TYPE MONGO);
+
+# INSERT into the nested collection (address_city, address_zip are flattened from address.city, address.zip)
+statement ok
+INSERT INTO m.duckdb_mongo_test.insert_nested (address_city, address_zip, tag)
+SELECT * FROM (VALUES ('NYC', 10001, 'nested_roundtrip')) AS t(a, b, c);
+
+# Verify that at least one row matches (idempotent across re-runs since MongoDB generates _id)
+query I
+SELECT count(*) > 0 FROM m.duckdb_mongo_test.insert_nested WHERE tag = 'nested_roundtrip' AND address_city = 'NYC';
+----
+true
+
+# ObjectId round-trip: insert_typed has _id typed as ObjectId.
+# Uses CTAS to a temp collection so re-runs don't hit duplicate _id errors.
+statement ok
+CREATE TABLE m.duckdb_mongo_test.oid_roundtrip AS
+SELECT * FROM (VALUES ('0123456789abcdef01234567', 42, 'test_oid')) AS t(_id, n, label);
+
+query TIT
+SELECT _id, n, label FROM m.duckdb_mongo_test.oid_roundtrip WHERE label = 'test_oid';
+----
+0123456789abcdef01234567	42	test_oid
+
+# Cleanup
+statement ok
+DROP TABLE m.duckdb_mongo_test.oid_roundtrip;
+
+statement ok
+DETACH m;

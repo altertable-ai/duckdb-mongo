@@ -1,0 +1,50 @@
+# Write-path type coverage: CTAS roundtrip for every supported DuckDB type.
+#
+# Uses CREATE TABLE AS so that column types come from the SELECT (no pre-seeded
+# schema needed). Each row is read back to verify the BSON serializer roundtrips.
+
+require mongo
+
+require-env MONGODB_TEST_DATABASE_AVAILABLE
+
+statement ok
+ATTACH 'host=localhost port=27017 dbname=duckdb_mongo_test' AS m (TYPE MONGO);
+
+# --- scalar types ---
+statement ok
+CREATE TABLE m.duckdb_mongo_test.write_types AS SELECT
+  1 AS int_col,
+  9999999999::BIGINT AS bigint_col,
+  3.14::DOUBLE AS double_col,
+  TRUE AS bool_col,
+  'hello' AS str_col,
+  DATE '2024-01-15' AS date_col,
+  TIMESTAMP '2024-01-15 10:30:00' AS ts_col;
+
+query TTTTTTT
+SELECT int_col, bigint_col, double_col, bool_col, str_col, date_col, ts_col
+FROM m.duckdb_mongo_test.write_types;
+----
+1	9999999999	3.14	true	hello	2024-01-15	2024-01-15 10:30:00
+
+# --- structured types: STRUCT written as subdocument, read back as VARCHAR/JSON ---
+statement ok
+CREATE TABLE m.duckdb_mongo_test.write_structured AS SELECT
+  {'x': 1, 'y': 'two'} AS nested_col,
+  'tag' AS label;
+
+# Subdocuments are read back as JSON-encoded VARCHAR
+query TT
+SELECT nested_col, label FROM m.duckdb_mongo_test.write_structured;
+----
+{ "x" : 1,"y" : "two"}	tag
+
+# Cleanup
+statement ok
+DROP TABLE m.duckdb_mongo_test.write_types;
+
+statement ok
+DROP TABLE m.duckdb_mongo_test.write_structured;
+
+statement ok
+DETACH m;
