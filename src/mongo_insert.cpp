@@ -108,8 +108,9 @@ static bsoncxx::types::bson_value::value CellToBson(const Value &value, const Lo
 		auto &child_types = StructType::GetChildTypes(type);
 		auto &children = StructValue::GetChildren(value);
 		for (idx_t i = 0; i < children.size(); i++) {
-			sub.append(bsoncxx::builder::basic::kvp(
-			    child_types[i].first, CellToBson(children[i], child_types[i].second, "", objectid_columns)));
+			sub.append(
+			    bsoncxx::builder::basic::kvp(MongoChildPairName(child_types[i]),
+			                                 CellToBson(children[i], child_types[i].second, "", objectid_columns)));
 		}
 		return types::bson_value::value(sub.view());
 	}
@@ -200,10 +201,17 @@ unique_ptr<CatalogEntry> MongoCreateTableEntry(Catalog &catalog, SchemaCatalogEn
 		return nullptr;
 	}
 
+#ifdef DUCKDB_MAIN_VECTOR_API
+	CreateTableInfo info(schema, Identifier(collection_name));
+	for (idx_t i = 0; i < scan_data->column_names.size(); i++) {
+		info.columns.AddColumn(ColumnDefinition(Identifier(scan_data->column_names[i]), scan_data->column_types[i]));
+	}
+#else
 	CreateTableInfo info(schema, collection_name);
 	for (idx_t i = 0; i < scan_data->column_names.size(); i++) {
 		info.columns.AddColumn(ColumnDefinition(scan_data->column_names[i], scan_data->column_types[i]));
 	}
+#endif
 
 	return make_uniq_base<CatalogEntry, MongoTableEntry>(catalog, schema, info, std::move(scan_data));
 }

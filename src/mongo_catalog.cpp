@@ -402,9 +402,15 @@ optional_ptr<SchemaCatalogEntry> MongoCatalog::LookupSchema(CatalogTransaction t
 PhysicalOperator &MongoCatalog::PlanCreateTableAs(ClientContext &context, PhysicalPlanGenerator &planner,
                                                   LogicalCreateTable &op, PhysicalOperator &plan) {
 	auto &create_info = op.info->Base();
-	// The MongoDB database is the target schema name; the collection is the new table name.
-	const string &db_name = create_info.schema.empty() ? database_name : create_info.schema;
-	const string &collection_name = create_info.table;
+#ifdef DUCKDB_MAIN_VECTOR_API
+	string schema_name = create_info.GetQualifiedName().Schema().GetIdentifierName();
+	string table_name = create_info.GetTableName().GetIdentifierName();
+#else
+	string schema_name = create_info.schema;
+	string table_name = create_info.table;
+#endif
+	const string &db_name = schema_name.empty() ? database_name : schema_name;
+	const string &collection_name = table_name;
 
 	// A new collection has no inferred schema, so columns map straight to top-level fields (no flatten reversal) and no
 	// column is known to be an ObjectId. The SELECT's output columns give the field names and types in order.
