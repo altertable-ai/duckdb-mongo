@@ -1,6 +1,6 @@
 # duckdb-mongo
 
-Integrates DuckDB with MongoDB, enabling direct SQL queries over MongoDB collections without exporting data or ETL.
+Integrates DuckDB with MongoDB, enabling direct SQL queries and writes over MongoDB collections without ETL.
 
 ## Announcement
 
@@ -22,6 +22,10 @@ ATTACH 'host=localhost port=27017' AS mongo_db (TYPE MONGO);
 
 -- Query your collections
 SELECT * FROM mongo_db.mydb.mycollection LIMIT 10;
+
+-- Load a CSV directly into MongoDB
+INSERT INTO mongo_db.mydb.mycollection
+SELECT * FROM read_csv('data.csv');
 ```
 
 **Using Secrets with MongoDB Atlas (recommended for production):**
@@ -58,7 +62,7 @@ SELECT * FROM atlas_db.mydb.mycollection;
   - Projections (SELECT columns)
   - Limits and TopN (ORDER BY _id LIMIT N)
   - Aggregations (COUNT, SUM, MIN, MAX, AVG with GROUP BY)
-- Read-only (write support may be added)
+- **Write support**: `INSERT INTO`, `CREATE TABLE AS SELECT`, `COPY TO (FORMAT mongo)`, and `DROP TABLE`
 
 ## Installation
 
@@ -390,6 +394,76 @@ This function clears all caches for all attached MongoDB databases:
 
 After clearing the cache, the next query will re-scan schemas and re-infer collection schemas.
 
+## Writing Data
+
+The extension supports writing data to MongoDB collections via INSERT, CREATE TABLE AS, and COPY TO.
+
+### INSERT INTO
+
+Insert rows into an existing MongoDB collection:
+
+```sql
+ATTACH 'host=localhost port=27017 dbname=duckdb_mongo_test' AS m (TYPE MONGO);
+
+-- Insert literal values
+INSERT INTO m.duckdb_mongo_test.users SELECT * FROM (VALUES ('alice', 28)) AS t(name, age);
+
+-- Insert from a CSV file
+INSERT INTO m.duckdb_mongo_test.users (name, age)
+SELECT name, age FROM read_csv('new_users.csv');
+
+-- Insert from another MongoDB collection
+INSERT INTO m.duckdb_mongo_test.archived_orders
+SELECT * FROM m.duckdb_mongo_test.orders WHERE status = 'completed';
+```
+
+The collection must already exist in MongoDB (schema is inferred from existing documents). Columns are mapped back to nested MongoDB paths using the same flattening rules as reads (e.g., a column named `address_city` writes to `address.city`).
+
+### CREATE TABLE AS SELECT
+
+Create a new MongoDB collection from a query result:
+
+```sql
+-- Create a new collection from a query
+CREATE TABLE m.duckdb_mongo_test.active_users AS
+SELECT name, age, email FROM m.duckdb_mongo_test.users WHERE age > 25;
+
+-- ETL from any DuckDB source into MongoDB
+CREATE TABLE m.duckdb_mongo_test.imported_data AS
+SELECT * FROM read_csv('data.csv');
+```
+
+The collection is created automatically. Column names become top-level field names in the resulting documents.
+
+### COPY TO
+
+Bulk-export query results to a MongoDB collection:
+
+```sql
+-- Three-part target: alias.database.collection
+COPY (SELECT * FROM source_table) TO 'm.duckdb_mongo_test.target_collection' (FORMAT mongo);
+
+-- Two-part target uses the attached database name
+COPY (SELECT * FROM source_table) TO 'm.target_collection' (FORMAT mongo);
+```
+
+### DROP TABLE
+
+Drop a MongoDB collection:
+
+```sql
+DROP TABLE m.duckdb_mongo_test.my_collection;
+DROP TABLE IF EXISTS m.duckdb_mongo_test.my_collection;
+```
+
+### Write Path Notes
+
+- Writes use unordered `insert_many` in batches of 1000 documents for throughput.
+- If `_id` is not provided, MongoDB generates an ObjectId automatically.
+- Duplicate `_id` values cause an error (the batch partially succeeds for non-duplicate rows).
+- `CREATE TABLE` (without `AS SELECT`) is not supported -- MongoDB collections have no fixed schema.
+- `UPDATE` and `DELETE` are not yet supported.
+
 ## Reference
 
 ### BSON Type Mapping
@@ -578,7 +652,7 @@ SELECT * FROM mongo_scan(
 
 ### Limitations
 
-- Read-only
+- **No UPDATE or DELETE** -- write support covers INSERT, CTAS, COPY TO, and DROP TABLE
 - Schema inference (when used as fallback) samples documents and may miss fields that don't appear in the sample
 - Schema re-inferred per query when using `mongo_scan` directly (cached when using `ATTACH`; use `mongo_clear_cache()` to invalidate)
 - **Decimal128 precision**: Converted to DOUBLE, which may lose precision for high-precision decimal values
@@ -589,7 +663,7 @@ SELECT * FROM mongo_scan(
 
 ### Architecture
 
-The extension enables **in-process analytical SQL queries** over MongoDB data using DuckDB's embedded analytical engine. Queries execute against live MongoDB data in real-time, with analytical operations (joins, aggregations, window functions) performed locally in memory.
+The extension enables **in-process analytical SQL queries and writes** over MongoDB data using DuckDB's embedded analytical engine. Reads execute against live MongoDB data in real-time, with analytical operations (joins, aggregations, window functions) performed locally in memory. Writes serialize DuckDB rows to BSON and batch-insert them via the MongoDB driver.
 
 ```
 ┌─────────────────────────────────────────┐
@@ -616,11 +690,12 @@ The extension enables **in-process analytical SQL queries** over MongoDB data us
 ┌────────┴───────────────────────┴────────┐
 │ duckdb-mongo Extension                  │
 │  • Schema Resolution                    │
-│  • Pushdown Optimization                │
-│  • BSON → Columnar Conversion           │
+│  • Read: Pushdown Optimization          │
+│  • Read: BSON → Columnar Conversion     │
+│  • Write: Columnar → BSON, insert_many  │
 └────────┬───────────────────────┬────────┘
          │                       ▲
-         │ MQL                   │ BSON stream
+         │ MQL / insert_many     │ BSON stream
          ▼                       │
 ┌─────────────────────────────────────────┐
 │         MONGODB DATABASE                │
@@ -628,8 +703,8 @@ The extension enables **in-process analytical SQL queries** over MongoDB data us
 │  │ Document Store Operations         │  │
 │  │ - Query Execution ($match, $group)│  │
 │  │ - Document Streaming (cursor)     │  │
+│  │ - Bulk Writes (insert_many)       │  │
 │  └───────────────────────────────────┘  │
-│  Data stays here (No ETL/Export)        │
 └─────────────────────────────────────────┘
 ```
 

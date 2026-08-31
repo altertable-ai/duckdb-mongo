@@ -1,0 +1,54 @@
+# name: test/sql/insert/insert_smoke.test
+# group: [insert]
+
+# INSERT smoke tests for the MongoDB extension.
+
+require mongo
+
+require-env MONGODB_TEST_DATABASE_AVAILABLE
+
+statement ok
+ATTACH 'host=localhost port=27017 dbname=duckdb_mongo_test' AS m (TYPE MONGO);
+
+# Reset target collections for idempotent re-runs
+statement ok
+DROP TABLE IF EXISTS m.duckdb_mongo_test.insert_target;
+
+statement ok
+CREATE TABLE m.duckdb_mongo_test.insert_target AS
+SELECT * FROM (VALUES (0, 'schema')) AS t(_id, name);
+
+statement ok
+DROP TABLE IF EXISTS m.duckdb_mongo_test.insert_dup;
+
+statement ok
+CREATE TABLE m.duckdb_mongo_test.insert_dup AS
+SELECT * FROM (VALUES (999, 'seed')) AS t(_id, name);
+
+# --- basic INSERT ... SELECT ---
+statement ok
+INSERT INTO m.duckdb_mongo_test.insert_target SELECT * FROM (VALUES (1, 'ann'), (2, 'bo')) AS t(_id, name);
+
+query IT
+SELECT _id, name FROM m.duckdb_mongo_test.insert_target WHERE _id > 0 ORDER BY _id;
+----
+1	ann
+2	bo
+
+# --- INSERT with explicit column list ---
+statement ok
+INSERT INTO m.duckdb_mongo_test.insert_target (_id, name) SELECT * FROM (VALUES (3, 'cal')) AS t(a, b);
+
+query IT
+SELECT _id, name FROM m.duckdb_mongo_test.insert_target WHERE _id = 3;
+----
+3	cal
+
+# --- duplicate _id with unordered insert: statement errors ---
+statement error
+INSERT INTO m.duckdb_mongo_test.insert_dup SELECT * FROM (VALUES (1, 'a'), (2, 'b'), (999, 'dup'), (3, 'c')) AS t(_id, name);
+----
+E11000
+
+statement ok
+DETACH m;
