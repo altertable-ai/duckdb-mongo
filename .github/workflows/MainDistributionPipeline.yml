@@ -18,7 +18,7 @@ jobs:
     # v2.0-cyanoptera release branch; TODO: move to the v2.0.0 tag once it exists.
     uses: duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml@b8d325c37e82160886579880707493bd358c0e62
     with:
-      duckdb_version: v2.0.0
+      duckdb_version: 03bbf5adcb196cf05f4f46b15ba3daf655a9b5b2
       ci_tools_version: b8d325c37e82160886579880707493bd358c0e62
       extension_name: mongo
       exclude_archs: "wasm_mvp;wasm_eh;wasm_threads;windows_amd64_mingw;"
@@ -47,7 +47,7 @@ jobs:
     name: Code Quality Check
     uses: duckdb/extension-ci-tools/.github/workflows/_extension_code_quality.yml@b8d325c37e82160886579880707493bd358c0e62
     with:
-      duckdb_version: v2.0.0
+      duckdb_version: 03bbf5adcb196cf05f4f46b15ba3daf655a9b5b2
       ci_tools_version: b8d325c37e82160886579880707493bd358c0e62
       extension_name: mongo
       # Tidy check disabled because it requires MongoDB C++ driver (vcpkg dependency).
